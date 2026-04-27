@@ -1,145 +1,115 @@
-# Simulink 模型搭建说明（中文）
+# 第3—5章增量修改说明
 
-## 1. 目标
-构建一个用于论文仿真的 Simulink 模型，研究 DoS 攻击下 4 节点 Lorenz 复杂网络的弹性同步：
-- 网络动力学对应论文式(1)
-- DoS 切换信号 \sigma(t) 对应论文式(2)
-- 控制策略包含：无控制 / 线性控制 / 固定时间控制
-- 输出指标为总同步误差范数 ||e(t)||
+## 1. 直接替换范围
 
-## 2. 顶层结构
-建议模型命名为 `resilient_cdn_dos.slx`，顶层包含以下子系统：
-1. `Leader (Lorenz)`
-2. `Followers Network (4x Lorenz + Coupling)`
-3. `DoS Signal Generator`
-4. `Controller Bank`
-5. `Error Norm Calculator`
-6. `Scopes + To Workspace`
+在你的原 TeX 中，从
 
-信号流向：
-- `Leader` 输出主系统状态 s(t)
-- `Followers Network` 输出 4 个从节点状态 x_i(t)
-- `DoS Signal Generator` 输出 sigma(t)
-- `Controller Bank` 接收 e_i(t)=x_i-s 和 sigma(t)，输出控制输入 u_i(t)
-- `Followers Network` 接收 u_i(t) 并更新状态
-- `Error Norm Calculator` 输出 ||e(t)||
-
-## 3. DoS 信号模块（MATLAB Function）
-建议使用 `Clock` + `MATLAB Function`，函数代码如下：
-
-```matlab
-function sigma = dos_switch(t, duty, freq, phase)
-% sigma = 1: 攻击活跃；sigma = 0: 攻击休眠
-T = 1 / freq;
-tau = duty * T;
-local_t = mod(t + phase, T);
-if local_t < tau
-    sigma = 1;
-else
-    sigma = 0;
-end
-end
+```tex
+% ============================================================
+%  第3章 系统建模与问题描述
+% ============================================================
 ```
 
-建议参数：
-- duty: 0.20 / 0.35 / 0.50
-- freq: 0.50 Hz（可扩展扫描）
-- phase: 0
+开始，一直替换到参考文献开始前：
 
-## 4. 控制器模块
-输入：
-- `e`（12x1，按 [e1; e2; e3; e4] 堆叠，每个 e_i 属于 R^3）
-- `sigma`（标量）
-- `mode`（0=无控制，1=线性，2=固定时间）
-
-控制律：
-- 无控制：u = 0
-- 线性：u = (1-sigma) * (-k_lin * e)
-- 固定时间：u = (1-sigma) * (-k1*e - k2*sig(e)^p - k3*sig(e)^q)
-
-向量 `sig` 函数：
-
-```matlab
-function y = sig_pow(v, r)
-y = abs(v).^r .* sign(v);
-end
+```tex
+% ============================================================
+%  参考文献
+% ============================================================
 ```
 
-## 5. 从节点网络模块
-在 `Followers Network` 内：
-- 建 4 个 Lorenz 节点（每个节点 3 维状态积分）
-- 耦合项采用拉普拉斯矩阵 L：
-  xdot_i = f(x_i) - c * sum_j L(i,j) * Gamma * x_j + u_i
+如果你的主论文文件已经包含参考文献，则只复制 `revised_chapters_3_5.tex` 中第3—5章部分，不要重复复制参考文献。
 
-推荐环形拓扑拉普拉斯矩阵：
+## 2. 第3章目录重塑
 
-```matlab
-L = [ 2 -1  0 -1;
-     -1  2 -1  0;
-      0 -1  2 -1;
-     -1  0 -1  2];
+修改后第3章最多到 3.5：
+
+```tex
+\subsection{引言与建模思路}
+\subsection{复杂动态网络与时变时滞模型}
+\subsection{DoS/DDoS攻击诱导的马尔可夫跳变拓扑}
+\subsection{输入通道故障与同步误差系统}
+\subsection{弹性均方指数同步问题描述}
 ```
 
-Lorenz 动力学：
+合并关系：
 
-```matlab
-f1 = sigmaL * (x2 - x1);
-f2 = x1 * (rhoL - x3) - x2;
-f3 = x1 * x2 - betaL * x3;
+- 原“时变时滞与非线性假设”并入 3.2；
+- 原“攻击诱导马尔可夫跳变拓扑模型”并入 3.3；
+- 原“参考轨迹与同步误差系统”并入 3.4；
+- 原“控制目标”改为 3.5，并与“定义—问题3-1”形成闭环。
+
+## 3. 第4章目录重塑
+
+修改后第4章最多到 4.5：
+
+```tex
+\subsection{控制器设计思路与闭环误差系统}
+\subsection{不确定项处理与Lyapunov--Krasovskii泛函构造}
+\subsection{LMI综合条件与控制器增益恢复}
+\subsection{稳定性证明}
+\subsection{本章小结}
 ```
 
-## 6. 误差范数模块
-可用 `Sum + Math Function + Sqrt`，也可用 MATLAB Function：
+新增/修正：
 
-```matlab
-function en = error_norm(e)
-% e 为 12x1 误差向量
-en = sqrt(sum(e.^2));
-end
+- 将控制器结构放入 4.1，直接承接第三章误差系统；
+- 将非线性项、故障不确定项、LKF 和变量替换统一放入 4.2；
+- 主定理作为 4.3；
+- 证明独立为 4.4，便于答辩解释；
+- 新增 4.5 本章小结；
+- 删除原文中的 `\end{documen\end{proof}` 编译错误；
+- 修正 `\zeta(t)` 与 `\varsigma(t)` 不一致问题；
+- 说明当前模型没有外部扰动通道，因此不强行引入 $\gamma$，主性能指标为指数衰减率 $\alpha$。
+
+## 4. 第5章目录重塑
+
+修改后第5章最多到 5.5：
+
+```tex
+\subsection{仿真总体设计与模型参数}
+\subsection{控制器增益求解与实验流程}
+\subsection{基准同步实验与攻击模态验证}
+\subsection{攻击强度与输入通道故障敏感性分析}
+\subsection{本章小结}
 ```
 
-## 7. 对比实验设置
-每个攻击场景运行三组控制：
-1. mode=0（无控制）
-2. mode=1（线性控制）
-3. mode=2（固定时间控制）
+合并关系：
 
-攻击占空比：
-- 轻度：20%
-- 中度：35%
-- 重度：50%
+- 原“仿真模型”“攻击诱导拓扑模态”“时变时滞与输入通道故障参数”并入 5.1；
+- 原“控制器增益求解方法”改为 5.2；
+- 原“无时滞”“时变时滞”“马尔可夫跳变拓扑”相关仿真并入 5.3；
+- 原“输入通道故障”和“仿真结果对比分析”并入 5.4；
+- 5.5 保留为本章小结并改写为基于实际实验结果的总结。
 
-默认攻击频率：0.50 Hz（可做频率扫描）。
+## 5. 第五章已写入的实验结果
 
-## 8. 数据记录与图表
-建议使用 `To Workspace` 记录：
-- `tout`
-- `err_norm`
-- `sigma`
+### 基准实验
 
-后处理建议：
-- 用 `semilogy(tout, err_norm)` 画轻/重攻击误差图
-- 收敛时间定义为：误差首次小于阈值 0.01 且之后始终不再越界
+| 情形 | 最终误差 | 尾段 RMS | 收敛时间/s |
+|---|---:|---:|---:|
+| 弹性控制 | 0.000000 | 0.000004 | 2.0300 |
+| 无控制 | 5051093.383777 | 1497628.306890 | -- |
 
-## 9. 推荐参数
-- Lorenz: sigmaL=10, rhoL=28, betaL=8/3
-- Network: N=4, n=3, c=1, Gamma=eye(3)
-- 线性控制: k_lin=2
-- 固定时间控制: k1=2, k2=1, k3=1, p=1.5, q=0.8
+### 攻击强度敏感性
 
-## 10. 与 MATLAB 脚本的关系
-- `run_resilient_sync_experiments.m`：单次论文对比实验（轻/重攻击 + 收敛时间表）
-- `run_batch_experiments_auto.m`：批量自动化实验（占空比/频率扫描 + 自动输出结果）
+| 攻击强度 | 最终误差 | 尾段 RMS | 收敛时间/s |
+|---|---:|---:|---:|
+| mild | 0.000000 | 0.000001 | 1.6180 |
+| nominal | 0.000000 | 0.000004 | 2.0300 |
+| severe | 0.000000 | 0.000002 | 1.7560 |
 
-## 11. 可直接执行的实验命令
-在 MATLAB 命令行执行：
+### 输入通道故障敏感性
 
-```matlab
-cd('c:/Users/86156/MATLAB/Projects/fyx_paper/simulation')
+| 缩放系数 | 最终误差 | 尾段 RMS | 收敛时间/s |
+|---:|---:|---:|---:|
+| 1.00 | 0.000000 | 0.000004 | 2.0300 |
+| 0.85 | 0.000002 | 0.000020 | 2.5420 |
+| 0.70 | 0.000031 | 0.000112 | 3.6060 |
+| 0.55 | 0.000642 | 0.000870 | 5.5800 |
 
-% 单次实验：生成轻/重攻击图和基础收敛时间表
-run('run_resilient_sync_experiments.m')
+## 6. 后续需要你确认
 
-% 批量自动化实验：按 dutyList、freqList 自动扫描并保存结果
-run('run_batch_experiments_auto.m')
-```
+1. 本地 `figures` 目录的实际图片文件名需要和正文中的图名对应。
+2. 若你已经通过 LMI 求出 $K_1,K_2$，建议把具体矩阵补入第5.2节。
+3. 若后续要写 $H_\infty$ 性能指标 $\gamma$，需要先在系统模型中加入外部扰动项，否则不建议强行写 $\gamma$。
